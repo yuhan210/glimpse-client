@@ -134,9 +134,7 @@ public class SocketClient{
   			out.write(byteArray, 0, byteArray.length);
   		}
   		
-  		System.out.println("send entire frame");
-  		
-  		
+  		  		
   		SendHelper sp = new SendHelper(act);
     	sp.execute();
     	  	
@@ -146,53 +144,31 @@ public class SocketClient{
 
   	private CompleteListener callback;
   	
-  	public SendHelper(Activity act){
-  		
+  	public SendHelper(Activity act){  		
   		this.callback = (CompleteListener)act;
-  	
   	}
-  	public void execute() {
-		// TODO Auto-generated method stub
+	
+  	@Override
+  	protected String doInBackground(Void... params) {
+  		// TODO Auto-generated method stub
   		String message = "";
   	    int charsRead = 0;
   	    char[] buffer = new char[BUFFER_SIZE];
   	    try {
-  	    	if ((charsRead = in.read(buffer)) != -1) {
+  	    	if ((charsRead = in.read(buffer)) != '\n') {
   	    		message += new String(buffer).substring(0, charsRead);
-  	    		System.out.println("msg:" + message);
-  	    				
-  	    		 callback.responseCallback(message); 	  		
+  	    		System.out.println("msg:" + message);  	    		
   	        }
   	    	  	  	  
   	    } catch (IOException e) {
   	    	// TODO Auto-generated catch block
   	    	e.printStackTrace();
   	     }
-	}
-	
-  	@Override
-  	protected String doInBackground(Void... params) {
-  		/**
-  		System.out.println("running");
-  		String message = "";
-  	    int charsRead = 0;
-  	    char[] buffer = new char[BUFFER_SIZE];
-  	    try {
-  	    	while ((charsRead = in.read(buffer)) != -1) {
-  	    		message += new String(buffer).substring(0, charsRead);
-  	    		System.out.println("msg" + message );
-      	  		return message;
-  	        }
-  	    	  	  	  
-  	    } catch (IOException e) {
-  	    	// TODO Auto-generated catch block
-  	    	e.printStackTrace();
-  	     }**/
-  	    return null;
+  	    return message;
   	}
   	
   	 protected void onPostExecute(String result) {
-  		  //callback.responseCallback(result);
+  		  callback.responseCallback(result);
   	}
 
   }

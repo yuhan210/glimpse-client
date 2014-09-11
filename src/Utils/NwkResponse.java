@@ -47,8 +47,11 @@ public class NwkResponse {
 			String[] probSegs = probStr[1].split(",");
 			
 			double[] probEstimate = new double[Global.CLASS_NUMBER+1];
+			for (int j = 0; j < 10; ++j){
+				System.out.println(probSegs[j]);
+			}
 			
-			for (int j = 0; j < probSegs.length/2; ++j){
+			for (int j = 0; j < 5; ++j){
 				int index = 2 * j;
 				int l = Integer.parseInt(probSegs[index]);
 				double p = Double.parseDouble(probSegs[index + 1]);
