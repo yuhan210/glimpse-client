@@ -103,35 +103,7 @@ public class SocketClient{
   }
   
   public void goodBye() throws UnsupportedEncodingException, IOException{
-	  
-	   byte[] bSize = new byte[20];	 
-	    bSize[0] = (byte) ((-1 & 0xff) );
-	    bSize[1] = (byte) ((-1 >> 8) & 0xff);
-	    bSize[2] = (byte) ((-1 >> 16) & 0xff);
-	    bSize[3] = (byte) ((-1 >> 24) & 0xff);
-
-	    bSize[4] = (byte) ((-1 & 0xff) );
-	    bSize[5] = (byte) ((-1 >> 8) & 0xff);
-	    bSize[6] = (byte) ((-1 >> 16) & 0xff);
-	    bSize[7] = (byte)  ((-1 >> 24) & 0xff);
-
-	    bSize[8] = (byte) ((-1 & 0xff) );
-	    bSize[9] = (byte) ((-1 >> 8) & 0xff);
-	    bSize[10] = (byte) ((-1 >> 16) & 0xff);
-	    bSize[11] = (byte)  ((-1 >> 24) & 0xff);
-	    
-	    bSize[12] = (byte) ((-1 & 0xff) );
-	    bSize[13] = (byte) ((-1 >> 8) & 0xff);
-	    bSize[14] = (byte) ((-1 >> 16) & 0xff);
-	    bSize[15] = (byte)  ((-1 >> 24) & 0xff);
-	    
-	    bSize[16] = (byte) ((-1 & 0xff) );
-	    bSize[17] = (byte)((-1 >> 8) & 0xff);
-	    bSize[18] = (byte) ((-1 >> 16) & 0xff);
-	    bSize[19] = (byte)  ((-1 >> 24) & 0xff);
-
-	    out.write( bSize );
-	   
+	  sendProcessFrameHeader(-1, 0, 0, 0, 0);
   }
   
   public void sendEntireFrame(byte[] byteArray, Activity act)throws IOException { 
