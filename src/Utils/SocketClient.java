@@ -134,7 +134,8 @@ public class SocketClient{
 	   
   }
   
-  public void sendEntireFrame(byte[] byteArray, Activity act)throws IOException {  		
+  public void sendEntireFrame(byte[] byteArray, Activity act)throws IOException { 
+	  
   		SendHelper sp = new SendHelper(act, byteArray);
     	sp.execute();
   }
@@ -162,12 +163,11 @@ public class SocketClient{
 				e.printStackTrace();
 				return ffc;
 			}
-  		}
-  		  		
+  		}  		  
 		int faceNum;		
 		try {
 			faceNum = dis.readInt();
-			System.out.println(faceNum);
+			System.out.println("faceNum:" + faceNum);
 			
 			for (int i = 0; i < faceNum; ++i){
 				int x = dis.readInt();
@@ -182,7 +182,7 @@ public class SocketClient{
 					int f_x = dis.readInt();
 					int f_y = dis.readInt();
 					pts.add(new org.opencv.core.Point(f_x, f_y));
-					System.out.println("featurePoint " + j + ":" + f_x + "," + f_y);
+					//System.out.println("featurePoint " + j + ":" + f_x + "," + f_y);
 					
 				}
 				
@@ -198,23 +198,22 @@ public class SocketClient{
 					if (j == 0){
 						pred_label = label; 
 					}
-					System.out.println(label + "," + conf);
+				//	System.out.println(label + "," + conf);
 				}
 				
 				FaceClass fc = new FaceClass(pred_label, x, y, w, h, pts, all_conf);				
 				ffc.push(fc);
 			}
-		} catch (IOException e) {
-			
-			e.printStackTrace();	
-			
+		
+		} catch (IOException e) {			
+			e.printStackTrace();				
 		} 
 			
 		return ffc;
   	}
   	
-  	 protected void onPostExecute(FrameClass result) {
-  		  callback.responseCallback(result);
+  	 protected void onPostExecute(FrameClass result) {  		 
+  		  callback.responseCallback(result);  		 
   	 }
 
   }

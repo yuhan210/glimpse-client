@@ -46,7 +46,7 @@ import android.view.WindowManager;
 public class FdActivity extends Activity implements CvCameraViewListener2, CompleteListener {
 
     private static final String    TAG                 = "OCVSample::Activity";
-    private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 0, 0, 0);
+    private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 0, 255, 0);
     public static final int        JAVA_DETECTOR       = 0;
     public static final int        NATIVE_DETECTOR     = 1;
     private static int state = 1; // 0: tracking state, 1: transmit
@@ -113,6 +113,7 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
                     mOpenCvCameraView.enableView();
                     nwkReponse = new NwkResponse();
                     loadClasses();
+                    Global.sendFrame = true;
                     socketClient = new SocketClient("128.30.79.156", 8888);
                     socketClient.connectWithServer();
                     
@@ -225,34 +226,36 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
         mGray = inputFrame.gray();
     
         // compress //        
-        Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.RGB_565);
+        System.out.println(Global.sendFrame);
+        if (Global.sendFrame){
+        	Global.sendFrame = false;
+        	Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.RGB_565);
            
-        Utils.matToBitmap(mGray, bmp);
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        long t = System.nanoTime();	
-        bmp.compress(Bitmap.CompressFormat.JPEG, 30, stream);
+        	Utils.matToBitmap(mGray, bmp);
+        	ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        	long t = System.nanoTime();	
+        	bmp.compress(Bitmap.CompressFormat.JPEG, 30, stream);
             
-        double detectionTime = (System.nanoTime() - t)/ 1000000.0;
-        System.out.println("Compression time:" + detectionTime + "height:" + bmp.getHeight() + "width" + bmp.getWidth());        
-        byte[] byteArray = stream.toByteArray();
+        	double detectionTime = (System.nanoTime() - t)/ 1000000.0;
+        	System.out.println("Compression time:" + detectionTime + "height:" + bmp.getHeight() + "width" + bmp.getWidth());        
+        	byte[] byteArray = stream.toByteArray();
         
-        try {     
-        	socketClient.sendProcessFrameHeader(0, 0, byteArray.length, mGray.width(), mGray.height());
-            socketClient.sendEntireFrame(byteArray, this);		
-        } catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}      
+        	try {             	
+        		socketClient.sendProcessFrameHeader(2, 0, byteArray.length, mGray.width(), mGray.height());
+        		socketClient.sendEntireFrame(byteArray, this);		        
+        	} catch (UnsupportedEncodingException e) {
+        		// TODO Auto-generated catch block
+        		e.printStackTrace();
+        	} catch (IOException e) {
+        		// TODO Auto-generated catch block
+        		e.printStackTrace();
+        	}    
+        }
         return mRgba;
     }
 
     
-	public void responseCallback(FrameClass response) {
-		// parse results
-		
+	public void responseCallback(FrameClass response) {		
 		/**
 		Tracker curTracker = new Tracker();
 		if (nwkReponse.faces.size() > 0){
@@ -262,9 +265,11 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
 			curTracker.fc = nwkReponse.faces.get(0);
 		}
     	**/
-		
+		Global.sendFrame = true;
+		System.out.println("callback called: " + Global.sendFrame);
+				
 		if (response.getObjNum() > 0){
-			renderBoundingBox(nwkReponse.faces.get(0));
+			renderBoundingBox(response.faces.get(0));
 		}else{
 			
 		}
