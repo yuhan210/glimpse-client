@@ -16,11 +16,13 @@ public class NwkResponse {
 	
 	public void parseResponse(String response){
 		faces.clear();
+		
 		String[] segs = response.split(":");
 		
 		if (segs.length == 0){
 			System.out.println("Bad string.." + response);
 		}
+		
 		int faceNumber = Integer.parseInt(segs[0]);
 		
 		for (int i = 4; i < (4 + faceNumber); ++i){
@@ -47,9 +49,7 @@ public class NwkResponse {
 			String[] probSegs = probStr[1].split(",");
 			
 			double[] probEstimate = new double[Global.CLASS_NUMBER+1];
-			for (int j = 0; j < 10; ++j){
-				System.out.println(probSegs[j]);
-			}
+			
 			
 			for (int j = 0; j < 5; ++j){
 				int index = 2 * j;

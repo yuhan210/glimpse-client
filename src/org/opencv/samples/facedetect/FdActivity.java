@@ -29,6 +29,7 @@ import org.opencv.samples.facedetect.R;
 
 import Utils.CompleteListener;
 import Utils.FaceClass;
+import Utils.FrameClass;
 import Utils.Global;
 import Utils.NwkResponse;
 import Utils.SocketClient;
@@ -45,7 +46,7 @@ import android.view.WindowManager;
 public class FdActivity extends Activity implements CvCameraViewListener2, CompleteListener {
 
     private static final String    TAG                 = "OCVSample::Activity";
-    private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 255, 0, 255);
+    private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 0, 0, 0);
     public static final int        JAVA_DETECTOR       = 0;
     public static final int        NATIVE_DETECTOR     = 1;
     private static int state = 1; // 0: tracking state, 1: transmit
@@ -249,10 +250,8 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
     }
 
     
-	public void responseCallback(String response) {
+	public void responseCallback(FrameClass response) {
 		// parse results
-		nwkReponse.parseResponse(response);
-		System.out.println(response);
 		
 		/**
 		Tracker curTracker = new Tracker();
@@ -264,7 +263,7 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
 		}
     	**/
 		
-		if (nwkReponse.faces.size() > 0){
+		if (response.getObjNum() > 0){
 			renderBoundingBox(nwkReponse.faces.get(0));
 		}else{
 			
@@ -275,7 +274,7 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
     	  System.out.println("called");
     	  Core.rectangle(mRgba, fc.faceRect.tl(), fc.faceRect.br(), FACE_RECT_COLOR,3);      	  
       	  Core.putText(mRgba, labels.get(fc.label) , new org.opencv.core.Point(fc.faceRect.tl().x, fc.faceRect.tl().y-20) , 
-      				  1, 5,FACE_RECT_COLOR);      	     	   
+      				  1, 3,FACE_RECT_COLOR);      	     	   
     }
     
     @Override
@@ -325,4 +324,6 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
             }
         }
     }
+
+	
 }

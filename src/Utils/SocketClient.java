@@ -1,11 +1,14 @@
 package Utils;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 import android.app.Activity;
 import android.os.AsyncTask;
@@ -19,6 +22,7 @@ public class SocketClient{
   private Socket socket = null;
   private OutputStream out = null;
   private BufferedReader in = null;
+  private DataInputStream dis = null;
 
   private String host;
   private int port = 8888;
@@ -42,7 +46,8 @@ public class SocketClient{
       	System.out.println("should be connected..");
       	
       	out = socket.getOutputStream();
-      	in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+      	in = new BufferedReader(new InputStreamReader(socket.getInputStream()));      	
+      	dis = new DataInputStream(socket.getInputStream());      	
       	System.out.println(in.readLine());
           
       } catch (IOException e) {
@@ -99,7 +104,7 @@ public class SocketClient{
   
   public void goodBye() throws UnsupportedEncodingException, IOException{
 	  
-	   byte[] bSize = new byte[20];
+	   byte[] bSize = new byte[20];	 
 	    bSize[0] = (byte) ((-1 & 0xff) );
 	    bSize[1] = (byte) ((-1 >> 8) & 0xff);
 	    bSize[2] = (byte) ((-1 >> 16) & 0xff);
@@ -129,47 +134,88 @@ public class SocketClient{
 	   
   }
   
-  public void sendEntireFrame(byte[] byteArray, Activity act)throws IOException {
-  		if (out != null && byteArray.length > 0){  			
-  			out.write(byteArray, 0, byteArray.length);
-  		}
-  		
-  		  		
-  		SendHelper sp = new SendHelper(act);
+  public void sendEntireFrame(byte[] byteArray, Activity act)throws IOException {  		
+  		SendHelper sp = new SendHelper(act, byteArray);
     	sp.execute();
-    	  	
   }
 
-  public class SendHelper extends AsyncTask<Void, Void, String>{
+  public class SendHelper extends AsyncTask<Void, Void, FrameClass>{
 
   	private CompleteListener callback;
+  	private byte[] byteArray;
   	
-  	public SendHelper(Activity act){  		
+  	public SendHelper(Activity act, byte[] byteArray){  		
   		this.callback = (CompleteListener)act;
+  		this.byteArray = byteArray;
   	}
 	
   	@Override
-  	protected String doInBackground(Void... params) {
-  		// TODO Auto-generated method stub
-  		String message = "";
-  	    int charsRead = 0;
-  	    char[] buffer = new char[BUFFER_SIZE];
-  	    try {
-  	    	if ((charsRead = in.read(buffer)) != '\n') {
-  	    		message += new String(buffer).substring(0, charsRead);
-  	    		System.out.println("msg:" + message);  	    		
-  	        }
-  	    	  	  	  
-  	    } catch (IOException e) {
-  	    	// TODO Auto-generated catch block
-  	    	e.printStackTrace();
-  	     }
-  	    return message;
+  	protected FrameClass doInBackground(Void... params) {
+  		
+  		FrameClass ffc = new FrameClass(0, System.nanoTime());
+  		
+  		if (out != null && byteArray.length > 0){  			
+  			try {
+				out.write(byteArray, 0, byteArray.length);
+			} catch (IOException e) {
+				
+				e.printStackTrace();
+				return ffc;
+			}
+  		}
+  		  		
+		int faceNum;		
+		try {
+			faceNum = dis.readInt();
+			System.out.println(faceNum);
+			
+			for (int i = 0; i < faceNum; ++i){
+				int x = dis.readInt();
+				int y = dis.readInt();
+				int w = dis.readInt();
+				int h = dis.readInt();
+				System.out.println(x + "," + y + "," + w + "," + h);
+				   
+				// feature points
+				List<org.opencv.core.Point> pts = new ArrayList<org.opencv.core.Point>();
+				for (int j = 0; j < 27; ++j){
+					int f_x = dis.readInt();
+					int f_y = dis.readInt();
+					pts.add(new org.opencv.core.Point(f_x, f_y));
+					System.out.println("featurePoint " + j + ":" + f_x + "," + f_y);
+					
+				}
+				
+				int pred_label = -1;   
+				//confidence
+				double[] all_conf = new double[Global.CLASS_NUMBER];
+				for (int j = 0; j < 5; ++j){
+					
+					int label = dis.readInt();
+					int conf = dis.readInt();					
+					all_conf[label] = conf;
+					
+					if (j == 0){
+						pred_label = label; 
+					}
+					System.out.println(label + "," + conf);
+				}
+				
+				FaceClass fc = new FaceClass(pred_label, x, y, w, h, pts, all_conf);				
+				ffc.push(fc);
+			}
+		} catch (IOException e) {
+			
+			e.printStackTrace();	
+			
+		} 
+			
+		return ffc;
   	}
   	
-  	 protected void onPostExecute(String result) {
+  	 protected void onPostExecute(FrameClass result) {
   		  callback.responseCallback(result);
-  	}
+  	 }
 
   }
 

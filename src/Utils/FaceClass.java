@@ -21,7 +21,18 @@ public class FaceClass{
 		faceRect = new Rect();
 		EWMA = new double[Global.CLASS_NUMBER];
 	}
+	
+	
 	FaceClass(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts, double[] _EWMA){
+		this.label = _label;
+		faceRect = new Rect(x,y, width, height);
+		centroid.x = x + width/2;
+		centroid.y = y + height/2;
+		featuresPts = new ArrayList<org.opencv.core.Point>(_featuresPts);
+		EWMA = Arrays.copyOf(_EWMA, _EWMA.length);
+	}
+	
+	public void init(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts, double[] _EWMA){
 		this.label = _label;
 		faceRect = new Rect(x,y, width, height);
 		centroid.x = x + width/2;
