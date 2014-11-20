@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -28,6 +30,7 @@ import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.samples.facedetect.R;
 
 import Utils.CompleteListener;
+import Utils.DPFrameSelection;
 import Utils.FaceClass;
 import Utils.FrameClass;
 import Utils.Global;
@@ -110,13 +113,22 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
                         e.printStackTrace();
                         Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
                     }
+                    //public static void DPFrameSelection(List<Integer> diffs, int l, int P, List<Integer> dp_ind)
+                    List<Integer> diffs = new ArrayList<Integer>();
+                    
+                    int[] seq = {391, 89,118,176,666,872,1177,1102,179,164,376,448,480,151,10,471,852,2493,4848,22592,33726,35868,33333,31663,31267,30389,28496,29035,30077,31868,34269,33778,33656};
+                   
+                    List<Integer> out = new ArrayList<Integer>();
+                    DPFrameSelection.run(diffs, 5, seq.length, out);
+                   
+                    /**
                     mOpenCvCameraView.enableView();
                     nwkReponse = new NwkResponse();
                     loadClasses();
                     Global.sendFrame = true;
                     socketClient = new SocketClient("128.30.79.156", 8888);
                     socketClient.connectWithServer();
-                    
+                    **/
                    
                 } break;
                 default:
@@ -319,13 +331,11 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
     private void setDetectorType(int type) {
         if (mDetectorType != type) {
             mDetectorType = type;
-
             if (type == NATIVE_DETECTOR) {
                 Log.i(TAG, "Detection Based Tracker enabled");
                 
             } else {
-                Log.i(TAG, "Cascade detector enabled");
-                
+                Log.i(TAG, "Cascade detector enabled");                
             }
         }
     }
