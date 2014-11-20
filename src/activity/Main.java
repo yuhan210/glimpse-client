@@ -1,4 +1,4 @@
-package org.opencv.samples.facedetect;
+package activity;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -29,14 +29,14 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.samples.facedetect.R;
 
-import Utils.CompleteListener;
-import Utils.DPFrameSelection;
-import Utils.FaceClass;
-import Utils.FrameClass;
-import Utils.Global;
-import Utils.NwkResponse;
-import Utils.SocketClient;
-import Utils.Tracker;
+import dp.DPFrameSelection;
+import utility.CompleteListener;
+import utility.FaceClass;
+import utility.FrameClass;
+import utility.Global;
+import utility.NwkResponse;
+import utility.SocketClient;
+import utility.Tracker;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -46,7 +46,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
 
-public class FdActivity extends Activity implements CvCameraViewListener2, CompleteListener {
+public class Main extends Activity implements CvCameraViewListener2, CompleteListener {
 
     private static final String    TAG                 = "OCVSample::Activity";
     private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 0, 255, 0);
@@ -139,7 +139,7 @@ public class FdActivity extends Activity implements CvCameraViewListener2, Compl
         }
     };
 
-    public FdActivity() {
+    public Main() {
         mDetectorName = new String[2];
         mDetectorName[JAVA_DETECTOR] = "Java";
         mDetectorName[NATIVE_DETECTOR] = "Native (tracking)";

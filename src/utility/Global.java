@@ -1,4 +1,4 @@
-package Utils;
+package utility;
 
 public class Global {
 	public static int CLASS_NUMBER;

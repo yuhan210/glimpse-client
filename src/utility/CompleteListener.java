@@ -1,4 +1,4 @@
-package Utils;
+package utility;
 
 public interface CompleteListener {
 	void responseCallback(FrameClass response);
