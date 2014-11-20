@@ -13,6 +13,10 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import nwkHelper.CompleteListener;
+import nwkHelper.NwkResponse;
+import nwkHelper.SocketClient;
+
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.LoaderCallbackInterface;
@@ -30,12 +34,9 @@ import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.samples.facedetect.R;
 
 import dp.DPFrameSelection;
-import utility.CompleteListener;
 import utility.FaceClass;
 import utility.FrameClass;
 import utility.Global;
-import utility.NwkResponse;
-import utility.SocketClient;
 import utility.Tracker;
 import android.app.Activity;
 import android.content.Context;

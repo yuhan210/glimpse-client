@@ -1,4 +1,4 @@
-package utility;
+package nwkHelper;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -10,6 +10,9 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
+import utility.FaceClass;
+import utility.FrameClass;
+import utility.Global;
 import android.app.Activity;
 import android.os.AsyncTask;
 

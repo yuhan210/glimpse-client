@@ -1,10 +1,13 @@
-package utility;
+package nwkHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
+
+import utility.FaceClass;
+import utility.Global;
 
 
 
