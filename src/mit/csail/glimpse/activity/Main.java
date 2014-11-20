@@ -49,7 +49,7 @@ import android.view.WindowManager;
 
 public class Main extends Activity implements CvCameraViewListener2, CompleteListener {
 
-    private static final String    TAG                 = "OCVSample::Activity";
+    private static final String    TAG                 = "Glimpse";
     private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 0, 255, 0);
     public static final int        JAVA_DETECTOR       = 0;
     public static final int        NATIVE_DETECTOR     = 1;
@@ -75,6 +75,8 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     private NwkResponse 		   nwkReponse;
     private Map<Integer, String> labels = new Hashtable<Integer, String>();	
 	
+    
+    private List<Tracker> trackers = new ArrayList<Tracker>();
     private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
@@ -123,7 +125,9 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
                     }
                     List<Integer> out = new ArrayList<Integer>();
                     out = DPFrameSelection.run(diffs, 5, seq.length);
-              
+                    for(int i = 0; i < out.size(); ++i){
+                    	System.out.println(out.get(i));
+                    }
                     /**
                     mOpenCvCameraView.enableView();
                     nwkReponse = new NwkResponse();
@@ -171,16 +175,16 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     	BufferedReader reader = null;		
 		try {						
 			reader = new BufferedReader(new InputStreamReader(
-				getAssets().open("final_classes_v2.txt"), "UTF-8")); 			  
+				getAssets().open("label.txt"), "UTF-8")); 			  
 			String mLine = reader.readLine();
 			int id = 0;
 			while (mLine != null) {
-				labels.put(id, mLine);
-		   	//	System.out.println(id + "," + mLine);
-				++id;		    	
-				mLine = reader.readLine();		        
+				labels.put(id, mLine);		  						    
+				mLine = reader.readLine();
+				++id;
 			}
 			Global.CLASS_NUMBER = id;
+			
 		} catch (IOException e) {
 			//log the exception
 		} finally {
@@ -194,36 +198,7 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
 		}
     }
     
-    @Override
-    public void onPause()
-    {
-        super.onPause();
-        if (mOpenCvCameraView != null)
-            mOpenCvCameraView.disableView();
-    }
-
-    @Override
-    public void onResume()
-    {
-        super.onResume();
-        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mLoaderCallback);
-    }
-
-    public void onDestroy() {
-        super.onDestroy();
-        mOpenCvCameraView.disableView();
-        try{
-        	socketClient.goodBye();
-        } catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        socketClient.disConnectWithServer();
-        
-    }
+  
 
     public void onCameraViewStarted(int width, int height) {
         mGray = new Mat();
@@ -239,25 +214,26 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
 
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
-    
-        // compress //        
+        
         System.out.println(Global.sendFrame);
-        if (Global.sendFrame){
+        if (Global.sendFrame){        	
         	Global.sendFrame = false;
-        	Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.RGB_565);
-           
+        	
+        	/** compress **/
+        	Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.RGB_565);           
         	Utils.matToBitmap(mGray, bmp);
-        	ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        	long t = System.nanoTime();	
-        	bmp.compress(Bitmap.CompressFormat.JPEG, 30, stream);
-            
-        	double detectionTime = (System.nanoTime() - t)/ 1000000.0;
-        	System.out.println("Compression time:" + detectionTime + "height:" + bmp.getHeight() + "width" + bmp.getWidth());        
-        	byte[] byteArray = stream.toByteArray();
+        	ByteArrayOutputStream stream = new ByteArrayOutputStream();        	
+        	//long t = System.nanoTime();	
+        	bmp.compress(Bitmap.CompressFormat.JPEG, 30, stream);            
+        	//double compressTime = (System.nanoTime() - t)/ 1000000.0;
+        	//System.out.println("Compression time:" + compressTime + "height:" + bmp.getHeight() + "width" + bmp.getWidth());
         
         	try {             	
+        		/** send compressed frame **/
+        		byte[] byteArray = stream.toByteArray();
         		socketClient.sendProcessFrameHeader(2, 0, byteArray.length, mGray.width(), mGray.height());
-        		socketClient.sendEntireFrame(byteArray, this);		        
+        		socketClient.sendEntireFrame(byteArray, this);		  
+        		
         	} catch (UnsupportedEncodingException e) {
         		// TODO Auto-generated catch block
         		e.printStackTrace();
@@ -266,23 +242,55 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         		e.printStackTrace();
         	}    
         }
+        
         return mRgba;
     }
 
-    
-	public void responseCallback(FrameClass response) {		
-		/**
-		Tracker curTracker = new Tracker();
-		if (nwkReponse.faces.size() > 0){
-			
-			curTracker.init(nwkReponse.frame, nwkReponse.faces.get(0));
-			curTracker.track(mGray, nwkReponse.faces.get(0).faceRect);    	
-			curTracker.fc = nwkReponse.faces.get(0);
-		}
-    	**/
+    /**
+     * Response comes back from the server
+     */
+	public void responseCallback(FrameClass response) {	
 		Global.sendFrame = true;
 		System.out.println("callback called: " + Global.sendFrame);
-				
+
+		// Replay frames in cache
+		
+		
+		
+		// Merge trackers
+		int[] foundInd = new int[response.faces.size()];
+		for (int i = 0; i < trackers.size(); ++i){
+			
+			Boolean found = false;
+			for (int j = 0; j < response.faces.size(); ++j){
+				if (trackers.get(i).fc.label == response.faces.get(j).label){
+					
+					// update (TODO: Kalman filter, soft merge label, wrong label)
+					trackers.get(i).fc = response.faces.get(j);
+					foundInd[j] = 1;
+					found = true;
+					break;
+				}
+			}
+			
+			// do tracking for not found object
+ 			if (!found){
+ 				//trackers.get(i).track(mGray, );
+ 				
+			}
+		}
+		
+		// insert new object
+		for(int i = 0; i < foundInd.length; ++i){
+			if (foundInd[i] == 0){				
+				Tracker t = new Tracker();
+				t.init(mGray, response.faces.get(i));
+				trackers.add(t);
+			}
+		}
+		
+		
+		// render results		
 		if (response.getObjNum() > 0){
 			renderBoundingBox(response.faces.get(0));
 		}else{
@@ -291,9 +299,8 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
 	}
     
     public void renderBoundingBox(FaceClass fc){
-    	  System.out.println("called");
-    	  Core.rectangle(mRgba, fc.faceRect.tl(), fc.faceRect.br(), FACE_RECT_COLOR,3);      	  
-      	  Core.putText(mRgba, labels.get(fc.label) , new org.opencv.core.Point(fc.faceRect.tl().x, fc.faceRect.tl().y-20) , 
+    	Core.rectangle(mRgba, fc.faceRect.tl(), fc.faceRect.br(), FACE_RECT_COLOR,3);      	  
+    	Core.putText(mRgba, labels.get(fc.label) , new org.opencv.core.Point(fc.faceRect.tl().x, fc.faceRect.tl().y-20) , 
       				  1, 3,FACE_RECT_COLOR);      	     	   
     }
     
@@ -343,5 +350,36 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         }
     }
 
+    
+    @Override
+    public void onPause()
+    {
+        super.onPause();
+        if (mOpenCvCameraView != null)
+            mOpenCvCameraView.disableView();
+    }
+
+    @Override
+    public void onResume()
+    {
+        super.onResume();
+        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mLoaderCallback);
+    }
+
+    public void onDestroy() {
+        super.onDestroy();
+        mOpenCvCameraView.disableView();
+        try{
+        	socketClient.goodBye();
+        } catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        socketClient.disConnectWithServer();
+        
+    }
 	
 }
