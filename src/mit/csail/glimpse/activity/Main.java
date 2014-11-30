@@ -13,12 +13,15 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import mit.csail.glimpse.dp.ActiveCache;
+import mit.csail.glimpse.dp.CachedFrame;
 import mit.csail.glimpse.dp.DPFrameSelection;
 import mit.csail.glimpse.nwkHelper.CompleteListener;
 import mit.csail.glimpse.nwkHelper.NwkResponse;
 import mit.csail.glimpse.nwkHelper.SocketClient;
 import mit.csail.glimpse.utility.FaceClass;
 import mit.csail.glimpse.utility.FrameClass;
+import mit.csail.glimpse.utility.FrameDifferencing;
 import mit.csail.glimpse.utility.Global;
 import mit.csail.glimpse.utility.Tracker;
 
@@ -36,7 +39,6 @@ import org.opencv.core.Size;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.objdetect.CascadeClassifier;
-
 
 import android.app.Activity;
 import android.content.Context;
@@ -73,6 +75,9 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     
     private SocketClient 		   socketClient;
     private NwkResponse 		   nwkReponse;
+    private Mat		               prevSentFrame;
+    private Mat 				   prevFrame;
+    private ActiveCache            activeCache;
     private Map<Integer, String> labels = new Hashtable<Integer, String>();	
 	
     
@@ -118,6 +123,7 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
                     }
                     //public static void DPFrameSelection(List<Integer> diffs, int l, int P, List<Integer> dp_ind)
                     List<Integer> diffs = new ArrayList<Integer>();
+                   
                     
                     int[] seq = {391, 89,118,176,666,872,1177,1102,179,164,376,448,480,151,10,471,852,2493,4848,22592,33726,35868,33333,31663,31267,30389,28496,29035,30077,31868,34269,33778,33656};
                     for(int i = 0; i < seq.length; ++i){
@@ -161,8 +167,13 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
+        Global.token = Global.TOKENLIMIT;
+        activeCache = new ActiveCache();
+        prevFrame = new Mat();
+        prevSentFrame = new Mat();
+        
+        
         setContentView(R.layout.face_detect_surface_view);
-
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.fd_activity_surface_view);
         mOpenCvCameraView.enableFpsMeter();
         mOpenCvCameraView.setCvCameraViewListener(this);
@@ -211,20 +222,38 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     }
 
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-
+    	long captureTime = System.nanoTime();
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
         
-        System.out.println(Global.sendFrame);
-        if (Global.sendFrame){        	
-        	Global.sendFrame = false;
+        System.out.println("token:" + Global.token);
+       
+        boolean sendCurFrame = false;
+        // Update trackers
+        
+        
+        //Triggered transmission
+        if (prevSentFrame.empty()){
+        	sendCurFrame = true;
+        }else{
+        	// frame differencing
+        	if (FrameDifferencing.getDiffSize(prevSentFrame, mGray) > Global.MOTIONTHRESH){
+        		sendCurFrame = true;
+        	}
+        }
+        
+        // Send current frame
+        if (sendCurFrame && Global.token > 0){     
+        	
+        	--Global.token;
         	
         	/** compress **/
         	Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.RGB_565);           
         	Utils.matToBitmap(mGray, bmp);
-        	ByteArrayOutputStream stream = new ByteArrayOutputStream();        	
+        	ByteArrayOutputStream stream = new ByteArrayOutputStream();    
+        	
         	//long t = System.nanoTime();	
-        	bmp.compress(Bitmap.CompressFormat.JPEG, 30, stream);            
+        	bmp.compress(Bitmap.CompressFormat.JPEG, 70, stream);            
         	//double compressTime = (System.nanoTime() - t)/ 1000000.0;
         	//System.out.println("Compression time:" + compressTime + "height:" + bmp.getHeight() + "width" + bmp.getWidth());
         
@@ -233,16 +262,20 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         		byte[] byteArray = stream.toByteArray();
         		socketClient.sendProcessFrameHeader(2, 0, byteArray.length, mGray.width(), mGray.height());
         		socketClient.sendEntireFrame(byteArray, this);		  
-        		
+        		prevSentFrame = mGray;
         	} catch (UnsupportedEncodingException e) {
-        		// TODO Auto-generated catch block
         		e.printStackTrace();
         	} catch (IOException e) {
-        		// TODO Auto-generated catch block
         		e.printStackTrace();
-        	}    
+        	} 
+        	
+        }else{ 
+        	int diff = FrameDifferencing.getDiffSize(prevFrame, mGray);
+        	CachedFrame cf = new CachedFrame(mGray,captureTime, diff);
+        	activeCache.add(cf);
+        	
         }
-        
+        mGray.copyTo(prevFrame);
         return mRgba;
     }
 
@@ -250,8 +283,8 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
      * Response comes back from the server
      */
 	public void responseCallback(FrameClass response) {	
-		Global.sendFrame = true;
-		System.out.println("callback called: " + Global.sendFrame);
+		++Global.token;
+		System.out.println("callback called: " + Global.token);
 
 		// Replay frames in cache
 		
