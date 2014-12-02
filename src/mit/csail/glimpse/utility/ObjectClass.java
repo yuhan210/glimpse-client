@@ -10,20 +10,20 @@ import android.graphics.Point;
 
 
 @SuppressLint("NewApi")
-public class FaceClass{
+public class ObjectClass{
 	public Rect faceRect;
 	public int label;
 	public Point centroid = new Point();
 	public double[] EWMA;
 	List<org.opencv.core.Point> featuresPts = new ArrayList<org.opencv.core.Point>();
 	
-	public FaceClass() {
+	public ObjectClass() {
 		faceRect = new Rect();
 		EWMA = new double[Global.CLASS_NUMBER];
 	}
 	
 	
-	public FaceClass(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts, double[] _EWMA){
+	public ObjectClass(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts, double[] _EWMA){
 		this.label = _label;
 		faceRect = new Rect(x,y, width, height);
 		centroid.x = x + width/2;

@@ -3,7 +3,7 @@ package mit.csail.glimpse.nwkHelper;
 import java.util.ArrayList;
 import java.util.List;
 
-import mit.csail.glimpse.utility.FaceClass;
+import mit.csail.glimpse.utility.ObjectClass;
 import mit.csail.glimpse.utility.Global;
 
 import org.opencv.core.Mat;
@@ -15,7 +15,7 @@ public class NwkResponse {
 	public Mat frame;
 	int shift_x;
 	int shift_y;
-	public List<FaceClass> faces = new ArrayList<FaceClass>();
+	public List<ObjectClass> faces = new ArrayList<ObjectClass>();
 	
 	public void parseResponse(String response){
 		faces.clear();
@@ -61,7 +61,7 @@ public class NwkResponse {
 				probEstimate[l] = p;
 			}
 			
-			FaceClass face = new FaceClass(label, left, top, width, height, featurePoints, probEstimate);
+			ObjectClass face = new ObjectClass(label, left, top, width, height, featurePoints, probEstimate);
 			faces.add(face);
 		}
 

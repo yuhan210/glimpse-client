@@ -17,16 +17,16 @@ import org.opencv.video.Video;
 public class Tracker {
 	Rect faceRect;
 	List<org.opencv.core.Point> prevPoints;
-	public FaceClass fc;
+	public ObjectClass fc;
 	public Mat prevFrame;
 
 	public Tracker(){
 		prevFrame = new Mat();
 		prevPoints = new ArrayList<Point>();
 		faceRect = new Rect();
-		fc = new FaceClass();
+		fc = new ObjectClass();
 	}
-	public void init(Mat curFrame, FaceClass fc){
+	public void init(Mat curFrame, ObjectClass fc){
 		prevPoints = new ArrayList<Point>(fc.featuresPts);
 		prevPoints.add(new Point(fc.faceRect.x, fc.faceRect.y));
 		prevPoints.add(new Point(fc.faceRect.x + fc.faceRect.width, fc.faceRect.y));
@@ -36,6 +36,7 @@ public class Tracker {
 		
 		//prevFrame = curFrame.clone();
 	}
+	
 	
 	public void track(Mat curFrame, Rect faceRect){
 		MatOfPoint2f nextPts = new MatOfPoint2f();	

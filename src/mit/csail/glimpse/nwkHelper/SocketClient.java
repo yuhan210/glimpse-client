@@ -10,7 +10,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
-import mit.csail.glimpse.utility.FaceClass;
+import mit.csail.glimpse.utility.ObjectClass;
 import mit.csail.glimpse.utility.FrameClass;
 import mit.csail.glimpse.utility.Global;
 import android.app.Activity;
@@ -176,7 +176,7 @@ public class SocketClient{
 				//	System.out.println(label + "," + conf);
 				}
 				
-				FaceClass fc = new FaceClass(pred_label, x, y, w, h, pts, all_conf);				
+				ObjectClass fc = new ObjectClass(pred_label, x, y, w, h, pts, all_conf);				
 				ffc.push(fc);
 			}
 		

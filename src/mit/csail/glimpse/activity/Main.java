@@ -19,11 +19,12 @@ import mit.csail.glimpse.dp.DPFrameSelection;
 import mit.csail.glimpse.nwkHelper.CompleteListener;
 import mit.csail.glimpse.nwkHelper.NwkResponse;
 import mit.csail.glimpse.nwkHelper.SocketClient;
-import mit.csail.glimpse.utility.FaceClass;
+import mit.csail.glimpse.utility.ObjectClass;
 import mit.csail.glimpse.utility.FrameClass;
 import mit.csail.glimpse.utility.FrameDifferencing;
 import mit.csail.glimpse.utility.Global;
 import mit.csail.glimpse.utility.Tracker;
+import mit.csail.glimpse.utility.Tracking;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
@@ -75,13 +76,19 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     
     private SocketClient 		   socketClient;
     private NwkResponse 		   nwkReponse;
-    private Mat		               prevSentFrame;
-    private Mat 				   prevFrame;
+    
+    // active cache
     private ActiveCache            activeCache;
+    
+    
+    // trigger frame
+    private Mat		               prevSentFrame;
+    
+    private FrameClass             trackers; 
+    private Mat 				   prevFrame;
     private Map<Integer, String> labels = new Hashtable<Integer, String>();	
 	
     
-    private List<Tracker> trackers = new ArrayList<Tracker>();
     private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
@@ -171,7 +178,7 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         activeCache = new ActiveCache();
         prevFrame = new Mat();
         prevSentFrame = new Mat();
-        
+        trackers = new FrameClass();
         
         setContentView(R.layout.face_detect_surface_view);
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.fd_activity_surface_view);
@@ -216,12 +223,9 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         mRgba = new Mat();
     }
 
-    public void onCameraViewStopped() {
-        mGray.release();
-        mRgba.release();
-    }
-
+  
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
+    	
     	long captureTime = System.nanoTime();
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
@@ -230,6 +234,16 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
        
         boolean sendCurFrame = false;
         // Update trackers
+        if (!prevFrame.empty()){
+        	for (int i = trackers.getObjNum(); i >= 0 ; ++i){
+        		ObjectClass oc = Tracking.run(prevFrame, mGray, trackers.objects.get(i));
+        		if (Tracking.doesTrackingWork(oc)){
+        			trackers.objects.set(i, oc);
+        		}else{
+        			trackers.objects.remove(i);
+        		}
+        	}
+        }
         
         
         //Triggered transmission
@@ -273,7 +287,6 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         	int diff = FrameDifferencing.getDiffSize(prevFrame, mGray);
         	CachedFrame cf = new CachedFrame(mGray,captureTime, diff);
         	activeCache.add(cf);
-        	
         }
         mGray.copyTo(prevFrame);
         return mRgba;
@@ -291,15 +304,15 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
 		
 		
 		// Merge trackers
-		int[] foundInd = new int[response.faces.size()];
-		for (int i = 0; i < trackers.size(); ++i){
+		int[] foundInd = new int[response.objects.size()];
+		for (int i = 0; i < trackers.getObjNum(); ++i){
 			
 			Boolean found = false;
-			for (int j = 0; j < response.faces.size(); ++j){
-				if (trackers.get(i).fc.label == response.faces.get(j).label){
+			for (int j = 0; j < response.objects.size(); ++j){
+				if (trackers.objects.get(i).label == response.objects.get(j).label){
 					
 					// update (TODO: Kalman filter, soft merge label, wrong label)
-					trackers.get(i).fc = response.faces.get(j);
+					trackers.objects.set(i, response.objects.get(j));
 					foundInd[j] = 1;
 					found = true;
 					break;
@@ -316,27 +329,35 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
 		// insert new object
 		for(int i = 0; i < foundInd.length; ++i){
 			if (foundInd[i] == 0){				
+				/**
 				Tracker t = new Tracker();
-				t.init(mGray, response.faces.get(i));
+				t.init(mGray, response.objects.get(i));
 				trackers.add(t);
+				**/
 			}
 		}
 		
 		
 		// render results		
 		if (response.getObjNum() > 0){
-			renderBoundingBox(response.faces.get(0));
+			renderBoundingBox(response.objects.get(0));
 		}else{
 			
 		}
 	}
     
-    public void renderBoundingBox(FaceClass fc){
+    public void renderBoundingBox(ObjectClass fc){
     	Core.rectangle(mRgba, fc.faceRect.tl(), fc.faceRect.br(), FACE_RECT_COLOR,3);      	  
     	Core.putText(mRgba, labels.get(fc.label) , new org.opencv.core.Point(fc.faceRect.tl().x, fc.faceRect.tl().y-20) , 
       				  1, 3,FACE_RECT_COLOR);      	     	   
     }
     
+    
+    public void onCameraViewStopped() {
+        mGray.release();
+        mRgba.release();
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         Log.i(TAG, "called onCreateOptionsMenu");
@@ -388,8 +409,9 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     public void onPause()
     {
         super.onPause();
-        if (mOpenCvCameraView != null)
+        if (mOpenCvCameraView != null){
             mOpenCvCameraView.disableView();
+        }
     }
 
     @Override
