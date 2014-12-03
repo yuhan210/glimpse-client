@@ -24,12 +24,14 @@ public class Tracking {
 		TermCriteria criteria = new TermCriteria(TermCriteria.MAX_ITER|TermCriteria.EPS, 5, 0.03);
 		
 		prevPts.fromList(oc.featuresPts);
-			
+		long t = System.nanoTime();	
 		Video.calcOpticalFlowPyrLK(prevFrame, curFrame, 
 				prevPts, nextPts, 
 				status, err, winSize, 
 				3, criteria, 
-				0, 0.001);		
+				0, 0.001);
+		double execTime = (System.nanoTime() - t)/ 1000000.0;
+		System.out.println("execTime:" + execTime );
 		List<Point> pts = nextPts.toList();
 		
 		oc.featuresPts = pts;
@@ -38,6 +40,31 @@ public class Tracking {
 		
 	}
 	
+	public static double run(ObjectClass oc, Mat prevFrame, Mat curFrame){
+		
+		MatOfPoint2f nextPts = new MatOfPoint2f();	
+		MatOfPoint2f prevPts = new MatOfPoint2f();
+		MatOfByte status = new MatOfByte();
+		MatOfFloat err = new MatOfFloat();
+		Size winSize = new Size(31,31);
+		TermCriteria criteria = new TermCriteria(TermCriteria.MAX_ITER|TermCriteria.EPS, 5, 0.03);
+		
+		prevPts.fromList(oc.featuresPts);
+		long t = System.nanoTime();	
+		Video.calcOpticalFlowPyrLK(prevFrame, curFrame, 
+				prevPts, nextPts, 
+				status, err, winSize, 
+				3, criteria, 
+				0, 0.001);
+		double execTime = (System.nanoTime() - t)/ 1000000.0;
+		//System.out.println("execTime:" + execTime );
+		List<Point> pts = nextPts.toList();
+		
+		oc.featuresPts = pts;
+		
+		return execTime;
+		
+	}
 	public static boolean doesTrackingWork(ObjectClass oc){
 		if (oc.featuresPts.size() < 4){
 			return false;

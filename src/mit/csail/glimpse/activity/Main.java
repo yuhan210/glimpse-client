@@ -48,6 +48,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -145,8 +146,25 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
                     System.out.println(counter);
                     }
                     **/
-                   
-                    mOpenCvCameraView.enableView();
+                    File sdCard = Environment.getExternalStorageDirectory();
+                    File img = new File(sdCard, "/opencv/1.jpg");
+                    Mat grayImg = Highgui.imread(img.getAbsolutePath(), Highgui.CV_LOAD_IMAGE_GRAYSCALE);
+                    
+                    List<Point> pts = new ArrayList<Point>();
+                    for (int i = 0; i < 30; ++i){
+                    	pts.add(new Point(23 + i, 480 - 2*i));
+                    }
+                    double times[] = new double[100]; 
+                    for(int counter = 0; counter < 100; ++counter){                    	
+                    	ObjectClass oc = new ObjectClass(123, 2, 3, 4, 5, pts);
+                    	double time = Tracking.run(oc, grayImg, grayImg);
+                    	times[counter] = time;
+                    }
+                    System.out.println( Stats.mean(times));
+                    
+                    mOpenCvCameraView.disableView();
+                    
+                    //mOpenCvCameraView.enableView();
                     /**
                     nwkReponse = new NwkResponse();
                     loadClasses();
@@ -244,17 +262,7 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         System.out.println("Compression time:" + execTime );
         **/
         //public ObjectClass(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts){
-        List<Point> pts = new ArrayList<Point>();
-        for (int i = 0; i < 10; ++i){
-        	pts.add(new Point(23 + i, 480 - 2*i));
-        }
-        double times[] = new double[100]; 
-        ObjectClass oc = new ObjectClass(123, 2, 3, 4, 5, pts);
-       
-       
-        Tracking.run(mGray, mGray, oc);
-        mOpenCvCameraView.disableView();
-        
+  
         return mRgba;
         /**
         System.out.println("token:" + Global.token);
