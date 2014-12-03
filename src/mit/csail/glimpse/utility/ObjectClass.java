@@ -22,6 +22,13 @@ public class ObjectClass{
 		EWMA = new double[Global.CLASS_NUMBER];
 	}
 	
+	public ObjectClass(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts){
+		this.label = _label;
+		faceRect = new Rect(x,y, width, height);
+		centroid.x = x + width/2;
+		centroid.y = y + height/2;
+		featuresPts = new ArrayList<org.opencv.core.Point>(_featuresPts);		
+	}
 	
 	public ObjectClass(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts, double[] _EWMA){
 		this.label = _label;

@@ -19,6 +19,7 @@ import mit.csail.glimpse.dp.DPFrameSelection;
 import mit.csail.glimpse.nwkHelper.CompleteListener;
 import mit.csail.glimpse.nwkHelper.NwkResponse;
 import mit.csail.glimpse.nwkHelper.SocketClient;
+import mit.csail.glimpse.stats.Stats;
 import mit.csail.glimpse.utility.ObjectClass;
 import mit.csail.glimpse.utility.FrameClass;
 import mit.csail.glimpse.utility.FrameDifferencing;
@@ -34,9 +35,11 @@ import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.highgui.Highgui;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.objdetect.CascadeClassifier;
@@ -129,20 +132,22 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
                         Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
                     }
                     //public static void DPFrameSelection(List<Integer> diffs, int l, int P, List<Integer> dp_ind)
-                    List<Integer> diffs = new ArrayList<Integer>();
-                   
                     
+                   /**
+                    for (int counter = 0; counter < 1; ++ counter){
+                    	List<Integer> diffs = new ArrayList<Integer>();
                     int[] seq = {391, 89,118,176,666,872,1177,1102,179,164,376,448,480,151,10,471,852,2493,4848,22592,33726,35868,33333,31663,31267,30389,28496,29035,30077,31868,34269,33778,33656};
                     for(int i = 0; i < seq.length; ++i){
                     	diffs.add(seq[i]);
                     }
                     List<Integer> out = new ArrayList<Integer>();
                     out = DPFrameSelection.run(diffs, 5, seq.length);
-                    for(int i = 0; i < out.size(); ++i){
-                    	System.out.println(out.get(i));
+                    System.out.println(counter);
                     }
-                    /**
+                    **/
+                   
                     mOpenCvCameraView.enableView();
+                    /**
                     nwkReponse = new NwkResponse();
                     loadClasses();
                     Global.sendFrame = true;
@@ -176,13 +181,12 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         
         Global.token = Global.TOKENLIMIT;
         activeCache = new ActiveCache();
-        prevFrame = new Mat();
-        prevSentFrame = new Mat();
+       
         trackers = new FrameClass();
         
         setContentView(R.layout.face_detect_surface_view);
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.fd_activity_surface_view);
-        mOpenCvCameraView.enableFpsMeter();
+        //mOpenCvCameraView.enableFpsMeter();
         mOpenCvCameraView.setCvCameraViewListener(this);
         //long maxMemory = Runtime.getRuntime().maxMemory();
         //Log.e(TAG, maxMemory + "");
@@ -221,6 +225,8 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     public void onCameraViewStarted(int width, int height) {
         mGray = new Mat();
         mRgba = new Mat();
+        prevFrame = new Mat();
+        prevSentFrame = new Mat();
     }
 
   
@@ -229,7 +235,28 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     	long captureTime = System.nanoTime();
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
+        /**
+        double times[] = new double[100]; 
         
+       	long t = System.nanoTime();	
+       	FrameDifferencing.getDiffSize(mGray, mGray);
+        double execTime = (System.nanoTime() - t)/ 1000000.0;
+        System.out.println("Compression time:" + execTime );
+        **/
+        //public ObjectClass(int _label, int x, int y, int width, int height, List<org.opencv.core.Point> _featuresPts){
+        List<Point> pts = new ArrayList<Point>();
+        for (int i = 0; i < 10; ++i){
+        	pts.add(new Point(23 + i, 480 - 2*i));
+        }
+        double times[] = new double[100]; 
+        ObjectClass oc = new ObjectClass(123, 2, 3, 4, 5, pts);
+       
+       
+        Tracking.run(mGray, mGray, oc);
+        mOpenCvCameraView.disableView();
+        
+        return mRgba;
+        /**
         System.out.println("token:" + Global.token);
        
         boolean sendCurFrame = false;
@@ -261,18 +288,17 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         	
         	--Global.token;
         	
-        	/** compress **/
+        	
         	Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.RGB_565);           
         	Utils.matToBitmap(mGray, bmp);
         	ByteArrayOutputStream stream = new ByteArrayOutputStream();    
         	
-        	//long t = System.nanoTime();	
+        
         	bmp.compress(Bitmap.CompressFormat.JPEG, 70, stream);            
-        	//double compressTime = (System.nanoTime() - t)/ 1000000.0;
-        	//System.out.println("Compression time:" + compressTime + "height:" + bmp.getHeight() + "width" + bmp.getWidth());
+        	
         
         	try {             	
-        		/** send compressed frame **/
+        		// send compressed frame 
         		byte[] byteArray = stream.toByteArray();
         		socketClient.sendProcessFrameHeader(2, 0, byteArray.length, mGray.width(), mGray.height());
         		socketClient.sendEntireFrame(byteArray, this);		  
@@ -289,7 +315,9 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         	activeCache.add(cf);
         }
         mGray.copyTo(prevFrame);
+        
         return mRgba;
+        **/
     }
 
     /**

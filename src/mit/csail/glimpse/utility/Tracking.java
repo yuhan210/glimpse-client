@@ -21,14 +21,15 @@ public class Tracking {
 		MatOfByte status = new MatOfByte();
 		MatOfFloat err = new MatOfFloat();
 		Size winSize = new Size(31,31);
-		TermCriteria criteria = new TermCriteria(TermCriteria.MAX_ITER|TermCriteria.EPS, 10, 0.03);
+		TermCriteria criteria = new TermCriteria(TermCriteria.MAX_ITER|TermCriteria.EPS, 5, 0.03);
 		
 		prevPts.fromList(oc.featuresPts);
+			
 		Video.calcOpticalFlowPyrLK(prevFrame, curFrame, 
 				prevPts, nextPts, 
 				status, err, winSize, 
 				3, criteria, 
-				0, 0.001);
+				0, 0.001);		
 		List<Point> pts = nextPts.toList();
 		
 		oc.featuresPts = pts;

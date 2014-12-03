@@ -9,19 +9,26 @@ public class FrameDifferencing {
 		
 		Mat diff = new Mat (a.rows(), a.cols(), a.type());
 		Core.absdiff(a, b, diff);
-		int size = (int) a.total() * a.channels();
-		byte[] buf = new byte[size];
-		diff.get(0,0,buf);
-		
+		//int size = (int) a.total() * a.channels();
+		//int size = 640 * 480;
+		//byte[] buf = new byte[size];
+		/**
+		int height = a.height();
+		int width = a.width();
+		byte[] a_buf = new byte[size];
+		byte[] b_buf = new byte[size];
+		a.get(0, 0, a_buf);
+		b.get(0, 0, b_buf);
 		int d = 0;
-		for (int i = 0; i < a.height(); ++i){
-			for (int j = 0; j < a.width(); ++j){
-				int ind = i * a.height() + j;
-				if (buf[ind] > 35){
+		for (int i = 0; i < height; ++i){
+			for (int j = 0; j < width; ++j){
+				int ind = i * height + j;
+				if (a_buf[ind] - b_buf[ind] > 35 || b_buf[ind] - a_buf[ind] > 35){
 					++d;
 				}
 			}
 		}
-		return d;
+		**/
+		return 0;
 	}
 }

@@ -7,8 +7,8 @@ import java.util.List;
 public class DPFrameSelection {
 
 	public static List<Integer> run(List<Integer> diffs, int l, int P){
-		int[][] M = new int[500][500];
-		int[][] solution = new int[500][500];
+		int[][] M = new int[100][100];
+		int[][] solution = new int[100][100];
 		int dp_n = diffs.size();
 		List<Integer> dp_ind = new ArrayList<Integer>();
 		

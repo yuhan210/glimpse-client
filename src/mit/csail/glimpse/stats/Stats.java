@@ -12,7 +12,11 @@ public class Stats {
         return sum / a.length;
     }
     public static double stddev(double[] a) {
-        return Math.sqrt(var(a));
+    	long t = System.nanoTime();	
+        double std =  Math.sqrt(var(a));
+        System.out.println("std time:" + (System.nanoTime()-t));
+        return std;
+       
     }
     public static double var(double[] a) {
         if (a.length == 0) return Double.NaN;
