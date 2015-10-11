@@ -4,7 +4,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+
+import mit.csail.glimpse.utility.FrameClass;
+import mit.csail.glimpse.utility.ObjectClass;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -12,70 +17,169 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.util.Base64;
 import android.util.Log;
+
+import org.opencv.android.Utils;
+import org.opencv.core.Mat;
+import org.opencv.core.Point;
 
 public class NetworkService {
 
 
     private static final String TAG = "NetworkService";
-    //private static final String SERVER_URL = "http://lenin01.cloudapp.net:5000";
     private static final String SERVER_URL = "http://192.168.5.30:8888";
+    private SendAsync sp;
     
     // HttpClient used for the requests.
     private final DefaultHttpClient mHttpClient;
 
-    public NetworkService(){
+    public NetworkService(Activity act){
         mHttpClient = new DefaultHttpClient();
+        sp = new SendAsync(act);
     }
 
-    public JSONObject CreateRequest(String img_path) throws JSONException {
-        JSONObject requestObject = new JSONObject();
-        Bitmap bitmap = BitmapFactory.decodeFile(img_path);
+    public void sendFrame(Mat mGray){ 
+  	  
+    	sp.execute(mGray);
+  }
+    
+    public JSONObject CreateRequest(Mat mGray) throws JSONException {
+    	
+    	JSONObject requestObject = new JSONObject();
+    	// compress mat to bitmap//
+    	Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.ARGB_8888);           
+    	Utils.matToBitmap(mGray, bmp);
+    	ByteArrayOutputStream stream = new ByteArrayOutputStream();    
+    	bmp.compress(Bitmap.CompressFormat.JPEG, 70, stream);  
+    	
+    	// encode bitmap to string using base64 //
+    	byte[] stream_bytes = stream.toByteArray();
+    	String bitmapBase64 = Base64.encodeToString(stream_bytes, Base64.NO_WRAP);
+    	
+    	// send frame //
+    	JSONObject jsonResponse = null;
+    	String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()); 
+    	try {        
+    		
+    		// wrap request into json //
+    		requestObject.put("image", bitmapBase64);
+            requestObject.put("filename", timeStamp + ".jpg");
+            requestObject.put("w", bmp.getWidth());
+            requestObject.put("h", bmp.getHeight());
+            
+            return requestObject;
+            
+    	} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
 
-        ByteArrayOutputStream full_stream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 70, full_stream);
-        byte[] full_bytes = full_stream.toByteArray();
-        System.out.println("width:"+bitmap.getWidth() + ',' + bitmap.getHeight());
-        System.out.println("image decoded size:" + full_bytes.length);
-        String bitmapBase64 = Base64.encodeToString(full_bytes, Base64.NO_WRAP);
-        System.out.println("image 64encoded size:" + bitmapBase64.length());
-        //= Utility.getBase64(bitmap, Bitmap.CompressFormat.JPEG, 70);
-        // should use userid for scaling
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        //System.out.println(bitmapBase64);
+		return null;
+    }
 
-        requestObject.put("image", bitmapBase64);
-        //System.out.println(full_bytes);
-        requestObject.put("filename", timeStamp + ".jpg");
+    public void PostAync(JSONObject requestObj) {
+    	
+    }
+    
+    private class SendAsync extends AsyncTask<Mat, Void, FrameClass> {
+    	
+    	private CompleteListener callback;
 
-        return requestObject;
+		public SendAsync(Activity act){  		
+      		this.callback = (CompleteListener)act;
+      	}
+    	
+        @Override
+        protected FrameClass doInBackground(Mat... data) {
+        	Mat mGray = data[0];
+        	
+        	
+        	
+			try {
+				JSONObject requestObject = CreateRequest(mGray);
+				if (requestObject != null){
+					
+	        		// post the json object
+					JSONObject jsonResponse = Post(requestObject); 
+					FrameClass frameResponse = parseResponse(jsonResponse); 
+	        		return frameResponse;
+	        	}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        	
+            return null;
+        }
+
+        protected void onPostExecute(FrameClass response){
+        	 
+        	 callback.responseCallback(response);  
+        }
     }
 
     public JSONObject Post(JSONObject requestObj) {
 
-        //HttpPost httpPost = new HttpPost(SERVER_URL + "/android_post");
         HttpPost httpPost = new HttpPost(SERVER_URL);
-
 
         if(requestObj != null) {
             String jsonObjectString = requestObj.toString();
-            System.out.println(jsonObjectString);
+            
             try {
                 httpPost.setEntity(new StringEntity(jsonObjectString, "UTF-8"));
+                
             } catch (UnsupportedEncodingException e) {
                 Log.e(TAG, "Unable to encode JSON data", e);
-                    //throw new RestClientException("Unable to encode the JSON Data", e, jsonObjectString);
             }
             httpPost.setHeader("Accept", "application/json");
             httpPost.setHeader("Content-type", "application/json");
         }
         return executeHttpMethod(httpPost);
+    }
+    
+    private FrameClass parseResponse(JSONObject jsonResponse){
+    	
+    	FrameClass fc = new FrameClass();
+		try {
+			int n_obj = jsonResponse.getInt("objnum");
+			if (n_obj > 0) {
+				
+	    		int label = jsonResponse.getInt("label");
+	    		int w = jsonResponse.getInt("w");
+	    		int h = jsonResponse.getInt("h");
+	    		int x = jsonResponse.getInt("x");
+	    		int y = jsonResponse.getInt("y");
+	    		double conf = jsonResponse.getDouble("conf");
+	    		String featurePts_str = jsonResponse.getString("featurePts");
+	    		
+	    		
+	    		
+	    		List<org.opencv.core.Point> featurePts = new ArrayList<org.opencv.core.Point>();
+				String[] segs = featurePts_str.split(",");
+				for (int i = 0; i < segs.length; ++i){
+					String[] pts = segs[i].split(";");
+					featurePts.add(new Point(Integer.parseInt(pts[0]), Integer.parseInt(pts[1])));
+				}
+	    		
+	    		ObjectClass oc = new ObjectClass(label, x, y, w, h, featurePts, conf);
+	    		fc.push(oc);
+	    	} 
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+		return fc;
+    	
     }
 
     /**
@@ -91,14 +195,21 @@ public class NetworkService {
         try {
             HttpResponse httpResponse = mHttpClient.execute(httpMethod);
             int httpStatusCode = httpResponse.getStatusLine().getStatusCode();
-            if(httpStatusCode != HttpStatus.SC_OK) {
+         
+            if(httpStatusCode != HttpStatus.SC_OK) { // 200
                 checkHttpStatus(httpMethod, httpStatusCode);
             }
-            //resultJson = Common.getJsonFromResponse(httpResponse);
+            String json_str = EntityUtils.toString(httpResponse.getEntity());
+            resultJson = new JSONObject(json_str);
 
         } catch(IOException e) {
+        	
             Log.e(TAG, "Unable to execute HTTP Method.", e);
-        } finally {
+            
+        } catch (JSONException e) {
+        	Log.e(TAG, "Unable to parse JSON response", e);
+			
+		} finally {
             httpMethod.abort();
         }
         return resultJson;
@@ -113,8 +224,8 @@ public class NetworkService {
      *
      */
     private void checkHttpStatus(HttpRequestBase httpMethod, int httpStatusCode) {
-        String requestedPath = httpMethod.getURI().toString();
-        if(httpStatusCode == HttpStatus.SC_FORBIDDEN) {
+       
+    	if(httpStatusCode == HttpStatus.SC_FORBIDDEN) {
             Log.e(TAG, "Access denied.");
            // throw new AccessDeniedException(requestedPath);
         }
