@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -17,8 +18,7 @@ import mit.csail.glimpse.dp.ActiveCache;
 import mit.csail.glimpse.dp.CachedFrame;
 import mit.csail.glimpse.dp.DPFrameSelection;
 import mit.csail.glimpse.nwkHelper.CompleteListener;
-import mit.csail.glimpse.nwkHelper.NwkResponse;
-import mit.csail.glimpse.nwkHelper.SocketClient;
+import mit.csail.glimpse.nwkHelper.NetworkService;
 import mit.csail.glimpse.utility.ObjectClass;
 import mit.csail.glimpse.utility.FrameClass;
 import mit.csail.glimpse.utility.FrameDifferencing;
@@ -26,6 +26,8 @@ import mit.csail.glimpse.utility.Global;
 import mit.csail.glimpse.utility.Tracker;
 import mit.csail.glimpse.utility.Tracking;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.LoaderCallbackInterface;
@@ -45,23 +47,22 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
 
+import java.util.Date;
+
 public class Main extends Activity implements CvCameraViewListener2, CompleteListener {
 
     private static final String    TAG                 = "Glimpse";
     private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 0, 255, 0);
-    public static final int        JAVA_DETECTOR       = 0;
-    public static final int        NATIVE_DETECTOR     = 1;
+    public static final int        NOACTIVECACHE       = 0;
+    public static final int        ACTIVECACHE     = 1;
     private static int state = 1; // 0: tracking state, 1: transmit
     
-    private MenuItem               mItemFace50;
-    private MenuItem               mItemFace40;
-    private MenuItem               mItemFace30;
-    private MenuItem               mItemFace20;
     private MenuItem               mItemType;
 
     private Mat                    mRgba;
@@ -69,34 +70,33 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     private File                   mCascadeFile;
     private CascadeClassifier      mJavaDetector;   
 
-    private int                    mDetectorType       = JAVA_DETECTOR;
-    private String[]               mDetectorName;
+    private int                    mSchemeType       = ACTIVECACHE;
+    private String[]               mSchemeName;
 
     private CameraBridgeViewBase   mOpenCvCameraView;
     
-    private SocketClient 		   socketClient;
-    private NwkResponse 		   nwkReponse;
+    //private SocketClient 		   socketClient;
+    //private NwkResponse 		   nwkReponse;
+    private NetworkService 		   nwkService;
     
     // active cache
     private ActiveCache            activeCache;
-    
-    
-    // trigger frame
-    private Mat		               prevSentFrame;
     
     private FrameClass             trackers; 
     private Mat 				   prevFrame;
     private Map<Integer, String> labels = new Hashtable<Integer, String>();	
 	
-    
+    int frame_count  = 0;
     private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
+        	
+        	
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS:
                 {
                     Log.i(TAG, "OpenCV loaded successfully");
-
+                    
                     // Load native library after(!) OpenCV initialization
                     System.loadLibrary("detection_based_tracker");
 
@@ -128,28 +128,10 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
                         e.printStackTrace();
                         Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
                     }
-                    //public static void DPFrameSelection(List<Integer> diffs, int l, int P, List<Integer> dp_ind)
-                    List<Integer> diffs = new ArrayList<Integer>();
                    
-                    
-                    int[] seq = {391, 89,118,176,666,872,1177,1102,179,164,376,448,480,151,10,471,852,2493,4848,22592,33726,35868,33333,31663,31267,30389,28496,29035,30077,31868,34269,33778,33656};
-                    for(int i = 0; i < seq.length; ++i){
-                    	diffs.add(seq[i]);
-                    }
-                    List<Integer> out = new ArrayList<Integer>();
-                    out = DPFrameSelection.run(diffs, 5, seq.length);
-                    for(int i = 0; i < out.size(); ++i){
-                    	System.out.println(out.get(i));
-                    }
-                    /**
                     mOpenCvCameraView.enableView();
-                    nwkReponse = new NwkResponse();
                     loadClasses();
-                    Global.sendFrame = true;
-                    socketClient = new SocketClient("128.30.79.156", 8888);
-                    socketClient.connectWithServer();
-                    **/
-                   
+                    
                 } break;
                 default:
                 {
@@ -160,30 +142,40 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     };
 
     public Main() {
-        mDetectorName = new String[2];
-        mDetectorName[JAVA_DETECTOR] = "Java";
-        mDetectorName[NATIVE_DETECTOR] = "Native (tracking)";
+    	
+    	mSchemeName = new String[2];
+    	mSchemeName[NOACTIVECACHE] = "No active cache";
+    	mSchemeName[ACTIVECACHE] = "Active cache";
                
         Log.i(TAG, "Instantiated new " + this.getClass());
     }
 
+    
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
+        
+        Log.i(TAG, "Trying to load OpenCV library");
+        if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_10, this, mLoaderCallback))
+        {
+        	Log.e(TAG, "OpenCV manager laoding failed");
+        }
+        
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
         Global.token = Global.TOKENLIMIT;
+        
         activeCache = new ActiveCache();
-        prevFrame = new Mat();
-        prevSentFrame = new Mat();
         trackers = new FrameClass();
+        nwkService = new NetworkService();
         
         setContentView(R.layout.face_detect_surface_view);
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.fd_activity_surface_view);
         mOpenCvCameraView.enableFpsMeter();
         mOpenCvCameraView.setCvCameraViewListener(this);
+        mOpenCvCameraView.setMaxFrameSize(640, 480);
         //long maxMemory = Runtime.getRuntime().maxMemory();
         //Log.e(TAG, maxMemory + "");
     }
@@ -226,14 +218,14 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
   
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
     	
+    	++frame_count;
     	long captureTime = System.nanoTime();
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
         
-        System.out.println("token:" + Global.token);
-       
-        boolean sendCurFrame = false;
+         
         // Update trackers
+        /**
         if (!prevFrame.empty()){
         	for (int i = trackers.getObjNum(); i >= 0 ; ++i){
         		ObjectClass oc = Tracking.run(prevFrame, mGray, trackers.objects.get(i));
@@ -243,59 +235,25 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
         			trackers.objects.remove(i);
         		}
         	}
+        }**/
+         
+       
+      
+        if (Global.token > 0){     
+        	--Global.token;      	
+        	nwkService.sendFrame(this, mGray);
         }
         
         
-        //Triggered transmission
-        if (prevSentFrame.empty()){
-        	sendCurFrame = true;
-        }else{
-        	// frame differencing
-        	if (FrameDifferencing.getDiffSize(prevSentFrame, mGray) > Global.MOTIONTHRESH){
-        		sendCurFrame = true;
-        	}
-        }
-        
-        // Send current frame
-        if (sendCurFrame && Global.token > 0){     
-        	
-        	--Global.token;
-        	
-        	/** compress **/
-        	Bitmap bmp = Bitmap.createBitmap(mGray.cols(), mGray.rows(), Bitmap.Config.RGB_565);           
-        	Utils.matToBitmap(mGray, bmp);
-        	ByteArrayOutputStream stream = new ByteArrayOutputStream();    
-        	
-        	//long t = System.nanoTime();	
-        	bmp.compress(Bitmap.CompressFormat.JPEG, 70, stream);            
-        	//double compressTime = (System.nanoTime() - t)/ 1000000.0;
-        	//System.out.println("Compression time:" + compressTime + "height:" + bmp.getHeight() + "width" + bmp.getWidth());
-        
-        	try {             	
-        		/** send compressed frame **/
-        		byte[] byteArray = stream.toByteArray();
-        		socketClient.sendProcessFrameHeader(2, 0, byteArray.length, mGray.width(), mGray.height());
-        		socketClient.sendEntireFrame(byteArray, this);		  
-        		prevSentFrame = mGray;
-        	} catch (UnsupportedEncodingException e) {
-        		e.printStackTrace();
-        	} catch (IOException e) {
-        		e.printStackTrace();
-        	} 
-        	
-        }else{ 
-        	int diff = FrameDifferencing.getDiffSize(prevFrame, mGray);
-        	CachedFrame cf = new CachedFrame(mGray,captureTime, diff);
-        	activeCache.add(cf);
-        }
-        mGray.copyTo(prevFrame);
         return mRgba;
     }
+    
 
     /**
      * Response comes back from the server
      */
 	public void responseCallback(FrameClass response) {	
+		
 		++Global.token;
 		System.out.println("callback called: " + Global.token);
 
@@ -360,46 +318,29 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        Log.i(TAG, "called onCreateOptionsMenu");
-        mItemFace50 = menu.add("Face size 50%");
-        mItemFace40 = menu.add("Face size 40%");
-        mItemFace30 = menu.add("Face size 30%");
-        mItemFace20 = menu.add("Face size 20%");
-        mItemType   = menu.add(mDetectorName[mDetectorType]);
+        mItemType   = menu.add(mSchemeName[mSchemeType]);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        Log.i(TAG, "called onOptionsItemSelected; selected item: " + item);
-        if (item == mItemFace50)
-            setMinFaceSize(0.5f);
-        else if (item == mItemFace40)
-            setMinFaceSize(0.4f);
-        else if (item == mItemFace30)
-            setMinFaceSize(0.3f);
-        else if (item == mItemFace20)
-            setMinFaceSize(0.2f);
-        else if (item == mItemType) {
-            int tmpDetectorType = (mDetectorType + 1) % mDetectorName.length;
-            item.setTitle(mDetectorName[tmpDetectorType]);
+        if (item == mItemType) {
+            int tmpDetectorType = (mSchemeType + 1) % mSchemeName.length;
+            item.setTitle(mSchemeName[tmpDetectorType]);
             setDetectorType(tmpDetectorType);
         }
         return true;
     }
 
-    private void setMinFaceSize(float faceSize) {
-       
-    }
-
+   
     private void setDetectorType(int type) {
-        if (mDetectorType != type) {
-            mDetectorType = type;
-            if (type == NATIVE_DETECTOR) {
-                Log.i(TAG, "Detection Based Tracker enabled");
+        if (mSchemeType != type) {
+        	mSchemeType = type;
+            if (type == NOACTIVECACHE) {
+                Log.i(TAG, "No active cache enabled");
                 
             } else {
-                Log.i(TAG, "Cascade detector enabled");                
+                Log.i(TAG, "Active cache enabled");                
             }
         }
     }
@@ -418,23 +359,11 @@ public class Main extends Activity implements CvCameraViewListener2, CompleteLis
     public void onResume()
     {
         super.onResume();
-        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mLoaderCallback);
     }
 
     public void onDestroy() {
         super.onDestroy();
         mOpenCvCameraView.disableView();
-        try{
-        	socketClient.goodBye();
-        } catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        socketClient.disConnectWithServer();
-        
     }
 	
 }
